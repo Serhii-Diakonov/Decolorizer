@@ -1,19 +1,25 @@
 package component;
 
+import settings.Keys;
+import settings.SettingsProvider;
 import timer.MarchingAntsTimer;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.color.ColorSpace;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorConvertOp;
 import java.io.File;
 import java.io.IOException;
 
 public class ImageWrapper extends JPanel {
     private static final String ESCAPE = "escape";
+    private static final Color GRAY = new Color(0, 0, 0, 150);
 
     private int imageX;
     private int imageY;
@@ -22,7 +28,7 @@ public class ImageWrapper extends JPanel {
 
     private Point startPoint;
     private Point endPoint;
-    private Image image;
+    private BufferedImage image;
     private boolean isSelectionModeActive;
     private float dashPhase;
 
@@ -44,7 +50,7 @@ public class ImageWrapper extends JPanel {
             public void mousePressed(MouseEvent e) {
                 if (isSelectionModeActive) {
                     startPoint = e.getPoint();
-                    endPoint = e.getPoint();
+                    endPoint = startPoint;
                 }
             }
 
@@ -100,18 +106,23 @@ public class ImageWrapper extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        boolean isSelectedAreaColored = Boolean.parseBoolean(SettingsProvider.getSetting(Keys.IS_AREA_COLORED));
         Graphics2D g2d = (Graphics2D) g.create();
+
         if (image != null) {
-            drawImage(g2d);
+            drawImage(g2d, !isSelectionModeActive
+                    || !isSelectedAreaColored
+                    || startPoint.equals(endPoint));
         }
 
         if (isSelectionModeActive && startPoint != null && endPoint != null) {
-            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.setColor(GRAY);
             g2d.fillRect(imageX, imageY, imageWidth, imageHeight);
             Rectangle selection = getSelection();
 
             g2d.setClip(selection);
-            drawImage(g2d);
+            drawImage(g2d, isSelectedAreaColored);
             g2d.setClip(null);
 
             g2d.setColor(Color.black);
@@ -134,13 +145,24 @@ public class ImageWrapper extends JPanel {
         );
     }
 
-    private void drawImage(Graphics2D g) {
-        Image scaledImage = getScaledImage(image);
+    private void drawImage(Graphics2D g, boolean isColored) {
+        BufferedImage processedImage = getProcessedImage(isColored);
+        Image scaledImage = getScaledImage(processedImage);
         imageWidth = scaledImage.getWidth(null);
         imageHeight = scaledImage.getHeight(null);
         imageX = getWidth() / 2 - scaledImage.getWidth(null) / 2;
         imageY = getHeight() / 2 - scaledImage.getHeight(null) / 2;
         g.drawImage(scaledImage, imageX, imageY, this);
+    }
+
+    private BufferedImage getProcessedImage(boolean isColored) {
+        if (isColored) {
+            return image;
+        }
+        BufferedImage processedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        ColorConvertOp greyColorConvert = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
+        greyColorConvert.filter(image, processedImage);
+        return processedImage;
     }
 
     private Image getScaledImage(Image image) {
