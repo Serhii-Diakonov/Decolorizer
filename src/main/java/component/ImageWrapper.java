@@ -113,6 +113,7 @@ public class ImageWrapper extends JPanel {
         if (image != null) {
             drawImage(g2d, !isSelectionModeActive
                     || !isSelectedAreaColored
+                    || startPoint == null
                     || startPoint.equals(endPoint));
         }
 
@@ -124,13 +125,7 @@ public class ImageWrapper extends JPanel {
             g2d.setClip(selection);
             drawImage(g2d, isSelectedAreaColored);
             g2d.setClip(null);
-
-            g2d.setColor(Color.black);
-            float[] dashPattern = {6f, 6f};
-            BasicStroke dashed = new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                    10f, dashPattern, dashPhase);
-            g2d.setStroke(dashed);
-            g2d.draw(selection);
+            drawSelection(g2d, selection);
 
             g2d.dispose();
         }
@@ -153,6 +148,17 @@ public class ImageWrapper extends JPanel {
         imageX = getWidth() / 2 - scaledImage.getWidth(null) / 2;
         imageY = getHeight() / 2 - scaledImage.getHeight(null) / 2;
         g.drawImage(scaledImage, imageX, imageY, this);
+    }
+
+    private void drawSelection(Graphics2D g2d, Rectangle selection) {
+        float[] dashPattern = {6f, 6f};
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, dashPattern, dashPhase));
+        g2d.draw(selection);
+
+        g2d.setColor(Color.BLACK);
+        g2d.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, dashPattern, dashPhase + dashPattern[0]));
+        g2d.draw(selection);
     }
 
     private BufferedImage getProcessedImage(boolean isColored) {
