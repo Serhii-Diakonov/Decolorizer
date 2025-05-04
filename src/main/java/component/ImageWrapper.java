@@ -1,5 +1,7 @@
 package component;
 
+import timer.MarchingAntsTimer;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -22,6 +24,7 @@ public class ImageWrapper extends JPanel {
     private Point endPoint;
     private Image image;
     private boolean isSelectionModeActive;
+    private float dashPhase;
 
     public ImageWrapper() {
         setBackground(Color.lightGray);
@@ -62,12 +65,16 @@ public class ImageWrapper extends JPanel {
                 deactivateSelectionMode();
             }
         });
+
+        new MarchingAntsTimer(() -> {
+            dashPhase += 2;
+            repaint();
+        });
     }
 
     public void showImagePreview(File imageFile) {
         try {
             image = ImageIO.read(imageFile);
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -98,7 +105,7 @@ public class ImageWrapper extends JPanel {
             drawImage(g2d);
         }
 
-        if (isSelectionModeActive) {
+        if (isSelectionModeActive && startPoint != null && endPoint != null) {
             g2d.setColor(new Color(0, 0, 0, 150));
             g2d.fillRect(imageX, imageY, imageWidth, imageHeight);
             Rectangle selection = getSelection();
@@ -109,7 +116,6 @@ public class ImageWrapper extends JPanel {
 
             g2d.setColor(Color.black);
             float[] dashPattern = {6f, 6f};
-            float dashPhase = 0;
             BasicStroke dashed = new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     10f, dashPattern, dashPhase);
             g2d.setStroke(dashed);
