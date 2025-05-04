@@ -1,71 +1,148 @@
 package component;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ContainerAdapter;
-import java.awt.event.ContainerEvent;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
 
 public class ImageWrapper extends JPanel {
+    private static final String ESCAPE = "escape";
 
+    private int imageX;
+    private int imageY;
+    private int imageWidth;
+    private int imageHeight;
+
+    private Point startPoint;
+    private Point endPoint;
     private Image image;
-    private JLabel displayedImage;
+    private boolean isSelectionModeActive;
 
     public ImageWrapper() {
-        setLayout(new GridLayout(1, 1));
-        setBorder(BorderFactory.createTitledBorder("Image Preview"));
+        setBackground(Color.lightGray);
 
-        JLabel emptyState = new JLabel("Drag & drop image here", SwingConstants.CENTER);
-        emptyState.setFont(new Font("Monospaced", Font.PLAIN, 24));
-        emptyState.setForeground(Color.lightGray);
-        add(emptyState);
-
-        addContainerListener(new ContainerAdapter() {
+        addMouseMotionListener(new MouseAdapter() {
             @Override
-            public void componentAdded(ContainerEvent e) {
-                updateContent();
-            }
-
-            @Override
-            public void componentRemoved(ContainerEvent e) {
-                updateContent();
-            }
-        });
-
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                if (displayedImage != null) {
-                    remove(displayedImage);
-                    displayedImage = new JLabel(getScaledImageIcon(image));
-                    add(displayedImage);
+            public void mouseDragged(MouseEvent e) {
+                if (isSelectionModeActive) {
+                    endPoint = e.getPoint();
+                    repaint();
                 }
-                updateContent();
+            }
+        });
+
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (isSelectionModeActive) {
+                    startPoint = e.getPoint();
+                    endPoint = e.getPoint();
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (isSelectionModeActive) {
+                    endPoint = e.getPoint();
+                }
+            }
+        });
+
+        ActionMap actionMap = getActionMap();
+        InputMap inputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), ESCAPE);
+        actionMap.put(ESCAPE, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                deactivateSelectionMode();
             }
         });
     }
 
-    public void draw(File imageFile) {
-        removeAll();
-        ImageIcon img = new ImageIcon(imageFile.getAbsolutePath());
-        image = img.getImage();
-        displayedImage = new JLabel(getScaledImageIcon(image));
-        add(displayedImage);
+    public void showImagePreview(File imageFile) {
+        try {
+            image = ImageIO.read(imageFile);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    private void updateContent() {
-        revalidate();
+    public void activateSelectionMode() {
+        if (image != null) {
+            Cursor cursor = Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
+            setCursor(cursor);
+            isSelectionModeActive = true;
+            requestFocusInWindow();
+        }
+    }
+
+    public void deactivateSelectionMode() {
+        isSelectionModeActive = false;
+        startPoint = null;
+        endPoint = null;
+        setCursor(Cursor.getDefaultCursor());
         repaint();
     }
 
-    private ImageIcon getScaledImageIcon(Image image) {
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g.create();
+        if (image != null) {
+            drawImage(g2d);
+        }
+
+        if (isSelectionModeActive) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(imageX, imageY, imageWidth, imageHeight);
+            Rectangle selection = getSelection();
+
+            g2d.setClip(selection);
+            drawImage(g2d);
+            g2d.setClip(null);
+
+            g2d.setColor(Color.black);
+            float[] dashPattern = {6f, 6f};
+            float dashPhase = 0;
+            BasicStroke dashed = new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                    10f, dashPattern, dashPhase);
+            g2d.setStroke(dashed);
+            g2d.draw(selection);
+
+            g2d.dispose();
+        }
+    }
+
+    private Rectangle getSelection() {
+        return new Rectangle(
+                Math.min(startPoint.x, endPoint.x),
+                Math.min(startPoint.y, endPoint.y),
+                Math.abs(startPoint.x - endPoint.x),
+                Math.abs(startPoint.y - endPoint.y)
+        );
+    }
+
+    private void drawImage(Graphics2D g) {
+        Image scaledImage = getScaledImage(image);
+        imageWidth = scaledImage.getWidth(null);
+        imageHeight = scaledImage.getHeight(null);
+        imageX = getWidth() / 2 - scaledImage.getWidth(null) / 2;
+        imageY = getHeight() / 2 - scaledImage.getHeight(null) / 2;
+        g.drawImage(scaledImage, imageX, imageY, this);
+    }
+
+    private Image getScaledImage(Image image) {
         int width = getWidth();
         int height = getHeight();
         float imageResolution = (float) image.getWidth(null) / image.getHeight(null);
-        return new ImageIcon(width > height
+        return width > height
                 ? image.getScaledInstance((int) (imageResolution * height), height, Image.SCALE_SMOOTH)
-                : image.getScaledInstance(width, (int) (width / imageResolution), Image.SCALE_SMOOTH));
+                : image.getScaledInstance(width, (int) (width / imageResolution), Image.SCALE_SMOOTH);
     }
 }

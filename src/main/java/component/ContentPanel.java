@@ -2,12 +2,12 @@ package component;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.File;
 
 public class ContentPanel extends JPanel {
-
-    private final ImageWrapper imageWrapper;
-    private boolean isInverted = false;
+    private final PreviewPanel previewPanel;
 
     public ContentPanel() {
         setLayout(new BorderLayout());
@@ -24,13 +24,17 @@ public class ContentPanel extends JPanel {
         bottomPanel.add(save);
         bottomPanel.add(selectArea);
 
-        imageWrapper = new ImageWrapper();
-        add(imageWrapper, BorderLayout.CENTER);
+        previewPanel = new PreviewPanel();
+        add(previewPanel, BorderLayout.CENTER);
         add(headerPanel, BorderLayout.NORTH);
         add(bottomPanel, BorderLayout.SOUTH);
+
+        selectArea.addActionListener(e -> {
+            previewPanel.activateSelectionMode();
+        });
     }
 
     public void draw(File image) {
-        imageWrapper.draw(image);
+        previewPanel.showImagePreview(image);
     }
 }
